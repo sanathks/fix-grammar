@@ -1,5 +1,9 @@
 # FixGrammar
 
+<p align="center">
+  <img src="Resources/AppIcon.icns" width="128" alt="FixGrammar icon">
+</p>
+
 A lightweight macOS menu bar app for system-wide grammar correction and tone rewriting, powered by a local Ollama instance. Select text in any app, hit a keyboard shortcut, and get a popover with the corrected text -- ready to replace or copy.
 
 All processing happens locally. No data leaves your machine.
