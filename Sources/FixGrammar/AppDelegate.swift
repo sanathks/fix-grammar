@@ -51,9 +51,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = Settings.shared
         HotkeyManager.shared.register(
             grammar: settings.grammarShortcut,
-            tone: settings.toneShortcut,
-            onGrammar: { [weak self] in self?.handleHotkey(mode: .grammar) },
-            onTone: { [weak self] in self?.handleHotkey(mode: .tone) }
+            rewrite: settings.rewriteShortcut,
+            onGrammar: { [weak self] in self?.handleGrammarHotkey() },
+            onRewrite: { [weak self] in self?.handleRewriteHotkey() }
         )
     }
 
@@ -61,11 +61,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = Settings.shared
         Publishers.CombineLatest(
             settings.$grammarShortcut,
-            settings.$toneShortcut
+            settings.$rewriteShortcut
         )
-        .dropFirst() // skip initial value
-        .sink { grammar, tone in
-            HotkeyManager.shared.updateShortcuts(grammar: grammar, tone: tone)
+        .dropFirst()
+        .sink { grammar, rewrite in
+            HotkeyManager.shared.updateShortcuts(grammar: grammar, rewrite: rewrite)
         }
         .store(in: &cancellables)
     }
@@ -80,7 +80,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handleHotkey(mode: PromptMode) {
+    private func handleGrammarHotkey() {
+        guard AccessibilityService.isTrusted() else {
+            AccessibilityService.requestPermission()
+            return
+        }
+
+        guard let text = AccessibilityService.shared.getSelectedText(), !text.isEmpty else {
+            NSSound.beep()
+            return
+        }
+
+        let settings = Settings.shared
+        let prompt: String
+
+        if let modeId = settings.defaultModeId,
+           let mode = settings.rewriteModes.first(where: { $0.id == modeId }) {
+            prompt = Prompts.rewrite(mode: mode, text: text)
+        } else {
+            prompt = Prompts.grammar(text: text)
+        }
+
+        OllamaService.shared.generate(prompt: prompt) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let corrected):
+                    AccessibilityService.shared.replaceTextInSourceApp(corrected)
+                case .failure:
+                    NSSound.beep()
+                }
+            }
+        }
+    }
+
+    private func handleRewriteHotkey() {
         guard AccessibilityService.isTrusted() else {
             AccessibilityService.requestPermission()
             return
@@ -90,17 +123,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let title = mode == .grammar ? "Fix Grammar" : "Add My Tone"
-        let prompt = Prompts.build(for: mode, text: text)
         let selectionRect = AccessibilityService.shared.getSelectionRect()
+        let settings = Settings.shared
+        let modes = settings.rewriteModes
+
+        guard !modes.isEmpty else { return }
+
+        // Pick default mode: use defaultModeId if it exists in modes, otherwise first mode
+        let initialMode: RewriteMode
+        if let modeId = settings.defaultModeId,
+           let mode = modes.first(where: { $0.id == modeId }) {
+            initialMode = mode
+        } else {
+            initialMode = modes[0]
+        }
 
         currentPanel?.close()
 
-        let panel = ResultPanel(title: title)
+        let panel = ResultPanel(modes: modes)
         currentPanel = panel
+
+        func runMode(_ mode: RewriteMode) {
+            let prompt = Prompts.rewrite(mode: mode, text: text)
+            OllamaService.shared.generate(prompt: prompt) { result in
+                switch result {
+                case .success(let rewritten):
+                    panel.updateResult(rewritten)
+                case .failure(let err):
+                    panel.updateError(err.localizedDescription)
+                }
+            }
+        }
 
         panel.show(
             near: selectionRect,
+            initialMode: initialMode,
+            onModeSelected: { mode in
+                runMode(mode)
+            },
             onReplace: { [weak self] result in
                 self?.currentPanel = nil
                 AccessibilityService.shared.replaceTextInSourceApp(result)
@@ -112,13 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
 
-        OllamaService.shared.generate(prompt: prompt) { result in
-            switch result {
-            case .success(let corrected):
-                panel.updateResult(corrected)
-            case .failure(let err):
-                panel.updateError(err.localizedDescription)
-            }
-        }
+        // Immediately run the initial mode
+        runMode(initialMode)
     }
 }

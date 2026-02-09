@@ -5,21 +5,21 @@ final class HotkeyManager {
     static let shared = HotkeyManager()
 
     private var grammarHotKeyRef: EventHotKeyRef?
-    private var toneHotKeyRef: EventHotKeyRef?
+    private var rewriteHotKeyRef: EventHotKeyRef?
     private var onGrammar: (() -> Void)?
-    private var onTone: (() -> Void)?
+    private var onRewrite: (() -> Void)?
     private var handlerInstalled = false
 
     private init() {}
 
     func register(
         grammar: Shortcut,
-        tone: Shortcut,
+        rewrite: Shortcut,
         onGrammar: @escaping () -> Void,
-        onTone: @escaping () -> Void
+        onRewrite: @escaping () -> Void
     ) {
         self.onGrammar = onGrammar
-        self.onTone = onTone
+        self.onRewrite = onRewrite
 
         if !handlerInstalled {
             var eventType = EventTypeSpec(
@@ -39,14 +39,14 @@ final class HotkeyManager {
         }
 
         registerKey(shortcut: grammar, id: 1, ref: &grammarHotKeyRef)
-        registerKey(shortcut: tone, id: 2, ref: &toneHotKeyRef)
+        registerKey(shortcut: rewrite, id: 2, ref: &rewriteHotKeyRef)
     }
 
-    func updateShortcuts(grammar: Shortcut, tone: Shortcut) {
+    func updateShortcuts(grammar: Shortcut, rewrite: Shortcut) {
         unregisterKey(ref: &grammarHotKeyRef)
-        unregisterKey(ref: &toneHotKeyRef)
+        unregisterKey(ref: &rewriteHotKeyRef)
         registerKey(shortcut: grammar, id: 1, ref: &grammarHotKeyRef)
-        registerKey(shortcut: tone, id: 2, ref: &toneHotKeyRef)
+        registerKey(shortcut: rewrite, id: 2, ref: &rewriteHotKeyRef)
     }
 
     private func registerKey(shortcut: Shortcut, id: UInt32, ref: inout EventHotKeyRef?) {
@@ -71,7 +71,7 @@ final class HotkeyManager {
     fileprivate func handleHotkey(id: UInt32) {
         switch id {
         case 1: onGrammar?()
-        case 2: onTone?()
+        case 2: onRewrite?()
         default: break
         }
     }

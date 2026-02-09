@@ -16,12 +16,27 @@ final class ResultPanel: NSObject, NSPopoverDelegate {
     private var retainedPopover: NSPopover?
     private var retainedAnchor: NSWindow?
 
-    init(title: String) {
-        self.state = PopupState(title: title)
+    init(modes: [RewriteMode]) {
+        self.state = PopupState(modes: modes)
         super.init()
     }
 
-    func show(near selectionRect: NSRect, onReplace: @escaping (String) -> Void, onCopy: @escaping (String) -> Void) {
+    func show(
+        near selectionRect: NSRect,
+        initialMode: RewriteMode,
+        onModeSelected: @escaping (RewriteMode) -> Void,
+        onReplace: @escaping (String) -> Void,
+        onCopy: @escaping (String) -> Void
+    ) {
+        state.selectedModeId = initialMode.id
+        state.phase = .loading
+
+        state.onModeSelected = { [weak self] mode in
+            self?.state.selectedModeId = mode.id
+            self?.state.phase = .loading
+            self?.reopenWithContent()
+            onModeSelected(mode)
+        }
         state.onReplace = { [weak self] text in
             self?.close()
             onReplace(text)
@@ -40,16 +55,14 @@ final class ResultPanel: NSObject, NSPopoverDelegate {
 
     func updateResult(_ text: String) {
         DispatchQueue.main.async {
-            self.state.isLoading = false
-            self.state.resultText = text
+            self.state.phase = .result(text)
             self.reopenWithContent()
         }
     }
 
     func updateError(_ message: String) {
         DispatchQueue.main.async {
-            self.state.isLoading = false
-            self.state.errorMessage = message
+            self.state.phase = .error(message)
             self.reopenWithContent()
         }
     }
@@ -136,8 +149,8 @@ final class ResultPanel: NSObject, NSPopoverDelegate {
                 return nil
             }
             if event.keyCode == 36 {
-                if !self.state.isLoading && self.state.errorMessage == nil {
-                    self.state.onReplace?(self.state.resultText)
+                if case .result(let text) = self.state.phase {
+                    self.state.onReplace?(text)
                 }
                 return nil
             }

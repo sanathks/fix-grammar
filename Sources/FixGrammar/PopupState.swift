@@ -1,17 +1,23 @@
 import Foundation
 
+enum PopupPhase {
+    case loading
+    case result(String)
+    case error(String)
+}
+
 final class PopupState: ObservableObject {
-    let title: String
+    @Published var phase: PopupPhase
+    @Published var selectedModeId: UUID?
 
-    @Published var isLoading = true
-    @Published var resultText = ""
-    @Published var errorMessage: String?
-
+    var modes: [RewriteMode]
+    var onModeSelected: ((RewriteMode) -> Void)?
     var onReplace: ((String) -> Void)?
     var onCopy: ((String) -> Void)?
     var onCancel: (() -> Void)?
 
-    init(title: String) {
-        self.title = title
+    init(modes: [RewriteMode]) {
+        self.modes = modes
+        self.phase = .loading
     }
 }

@@ -5,15 +5,30 @@ private let maxContentHeight: CGFloat = 300
 
 struct PopupView: View {
     @ObservedObject var state: PopupState
+    @State private var hoveredMode: RewriteMode.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(state.title)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
-                .padding(.bottom, 10)
+            // Mode pills - always visible
+            FlowLayout(spacing: 6) {
+                ForEach(state.modes) { mode in
+                    ModeButton(
+                        label: mode.name,
+                        isSelected: state.selectedModeId == mode.id,
+                        isHovered: hoveredMode == mode.id
+                    ) {
+                        state.onModeSelected?(mode)
+                    }
+                    .onHover { hovering in
+                        hoveredMode = hovering ? mode.id : nil
+                    }
+                }
+            }
+            .padding(.bottom, 10)
 
-            if state.isLoading {
+            // Content area
+            switch state.phase {
+            case .loading:
                 HStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.small)
@@ -22,55 +37,88 @@ struct PopupView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.5))
                 }
-            } else if let error = state.errorMessage {
-                Text(error)
-                    .font(.system(size: 13))
-                    .foregroundColor(.red.opacity(0.9))
-            } else {
-                Text(state.resultText)
+
+            case .result(let text):
+                Text(text)
                     .font(.system(size: 13))
                     .foregroundColor(.white.opacity(0.9))
                     .textSelection(.enabled)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, maxHeight: maxContentHeight, alignment: .leading)
-            }
 
-            if !state.isLoading {
                 Rectangle()
                     .fill(Color.white.opacity(0.1))
                     .frame(height: 1)
                     .padding(.vertical, 8)
 
                 HStack(spacing: 0) {
-                    if state.errorMessage != nil {
-                        PopupButton(label: "Dismiss") { state.onCancel?() }
-                    } else {
-                        PopupButton(label: "Replace") { state.onReplace?(state.resultText) }
-                        PopupButton(label: "Copy") { state.onCopy?(state.resultText) }
-                    }
+                    ActionButton(label: "Replace") { state.onReplace?(text) }
+                    ActionButton(label: "Copy") { state.onCopy?(text) }
 
                     Spacer()
 
                     Button {
-                        state.onCopy?(state.resultText)
+                        state.onCopy?(text)
                     } label: {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.4))
                     }
                     .buttonStyle(.plain)
-                    .opacity(state.errorMessage == nil ? 1 : 0)
+                }
+
+            case .error(let message):
+                Text(message)
+                    .font(.system(size: 13))
+                    .foregroundColor(.red.opacity(0.9))
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(height: 1)
+                    .padding(.vertical, 8)
+
+                HStack(spacing: 0) {
+                    ActionButton(label: "Dismiss") { state.onCancel?() }
+                    Spacer()
                 }
             }
         }
-        .padding(14)
+        .padding(10)
         .frame(width: popupWidth)
         .preferredColorScheme(.dark)
     }
 }
 
-struct PopupButton: View {
+struct ModeButton: View {
+    let label: String
+    let isSelected: Bool
+    let isHovered: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(isSelected ? .white : (isHovered ? .white : .white.opacity(0.7)))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(isSelected ? Color.white.opacity(0.22) : (isHovered ? Color.white.opacity(0.14) : Color.white.opacity(0.08)))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(isSelected ? 0.35 : (isHovered ? 0.2 : 0.12)), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+    }
+}
+
+struct ActionButton: View {
     let label: String
     let action: () -> Void
 
@@ -86,5 +134,51 @@ struct PopupButton: View {
         }
         .buttonStyle(.plain)
         .padding(.trailing, 6)
+    }
+}
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = computeRows(proposal: proposal, subviews: subviews)
+        var height: CGFloat = 0
+        for (i, row) in rows.enumerated() {
+            let rowHeight = row.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+            height += rowHeight
+            if i < rows.count - 1 { height += spacing }
+        }
+        return CGSize(width: proposal.width ?? 0, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = computeRows(proposal: proposal, subviews: subviews)
+        var y = bounds.minY
+        for row in rows {
+            let rowHeight = row.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+            var x = bounds.minX
+            for subview in row {
+                let size = subview.sizeThatFits(.unspecified)
+                subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += rowHeight + spacing
+        }
+    }
+
+    private func computeRows(proposal: ProposedViewSize, subviews: Subviews) -> [[LayoutSubviews.Element]] {
+        let maxWidth = proposal.width ?? .infinity
+        var rows: [[LayoutSubviews.Element]] = [[]]
+        var currentWidth: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentWidth + size.width > maxWidth && !rows[rows.count - 1].isEmpty {
+                rows.append([])
+                currentWidth = 0
+            }
+            rows[rows.count - 1].append(subview)
+            currentWidth += size.width + spacing
+        }
+        return rows
     }
 }

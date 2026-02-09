@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var hasAccessibility = false
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 12) {
             Text("FixGrammar")
                 .font(.headline)
@@ -54,17 +55,15 @@ struct SettingsView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tone Description")
+            HStack {
+                Text("Rewrite Modes")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                TextEditor(text: $settings.toneDescription)
-                    .font(.body)
-                    .frame(height: 60)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                    )
+                Spacer()
+                Button("Configure...") {
+                    RewriteModesWindow.show()
+                }
+                .controlSize(.small)
             }
 
             Divider()
@@ -74,7 +73,20 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 ShortcutRecorder(label: "Fix Grammar", shortcut: $settings.grammarShortcut)
-                ShortcutRecorder(label: "Add Tone", shortcut: $settings.toneShortcut)
+                ShortcutRecorder(label: "Rewrite", shortcut: $settings.rewriteShortcut)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Default Mode (Fix Grammar shortcut)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Picker("", selection: defaultModeBinding) {
+                    Text("Grammar Fix").tag("")
+                    ForEach(settings.rewriteModes) { mode in
+                        Text(mode.name).tag(mode.id.uuidString)
+                    }
+                }
+                .labelsHidden()
             }
 
             Divider()
@@ -117,10 +129,21 @@ struct SettingsView: View {
         }
         .padding()
         .frame(width: 320)
+        }
+        .frame(maxHeight: 500)
         .onAppear {
             loadModels()
             hasAccessibility = AccessibilityService.isTrusted()
         }
+    }
+
+    private var defaultModeBinding: Binding<String> {
+        Binding(
+            get: { settings.defaultModeId?.uuidString ?? "" },
+            set: { newValue in
+                settings.defaultModeId = newValue.isEmpty ? nil : UUID(uuidString: newValue)
+            }
+        )
     }
 
     private func loadModels() {
