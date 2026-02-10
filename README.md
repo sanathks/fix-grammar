@@ -6,28 +6,44 @@
 
 </div>
 
-A lightweight macOS menu bar app for system-wide grammar correction and text rewriting, powered by a local Ollama instance. Select text in any app, hit a keyboard shortcut, and get instant results.
+A lightweight macOS menu bar app for system-wide grammar correction and text rewriting, powered by local LLMs via [Ollama](https://ollama.com). Select text in any app, hit a keyboard shortcut, and get instant results.
 
 All processing happens locally. No data leaves your machine.
 
-## Prerequisites
+## Install
 
-- macOS 13+
-- [Ollama](https://ollama.com) installed and running
-- A model pulled (default: `gemma3`):
-  ```bash
-  ollama pull gemma3
-  ```
-
-## Build & Install
+### Homebrew
 
 ```bash
+brew tap sanathks/rewrite
+brew install rewrite
+```
+
+To build from source instead of downloading the prebuilt binary:
+
+```bash
+brew install --HEAD rewrite
+```
+
+### Manual
+
+Requires macOS 13+ and Swift toolchain (Xcode or Command Line Tools).
+
+```bash
+git clone https://github.com/sanathks/rewrite.git
+cd rewrite
 chmod +x Scripts/build.sh Scripts/install.sh
 ./Scripts/build.sh
 ./Scripts/install.sh
 ```
 
-The app is installed to `~/Applications/`. You may need to log out and back in for accessibility permissions to take effect.
+### Prerequisites
+
+- [Ollama](https://ollama.com) installed and running
+- A model pulled (default: `gemma3`):
+  ```bash
+  ollama pull gemma3
+  ```
 
 ## Usage
 
