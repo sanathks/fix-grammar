@@ -58,10 +58,14 @@ Press `Esc` to dismiss the popup.
 
 The rewrite popup runs your default mode immediately and shows mode pills to switch between:
 
+![Rewrite Popup](screenshots/suggestions.png)
+
 - **Clarity** -- simplifies text for maximum readability
 - **My Tone** -- rewrites to match your personal tone description
 - **Humanize** -- makes AI-generated text sound natural
 - **Professional** -- polished business communication tone
+
+Click **Replace** to swap the original text in-place, or **Copy** to copy the result to clipboard.
 
 Modes are fully configurable. Add, remove, or edit modes and their prompts via **Configure...** in settings.
 
