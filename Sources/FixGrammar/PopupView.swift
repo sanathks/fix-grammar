@@ -15,7 +15,8 @@ struct PopupView: View {
                     ModeButton(
                         label: mode.name,
                         isSelected: state.selectedModeId == mode.id,
-                        isHovered: hoveredMode == mode.id
+                        isHovered: hoveredMode == mode.id,
+                        hasResult: state.modePhases[mode.id] != nil
                     ) {
                         state.onModeSelected?(mode)
                     }
@@ -27,7 +28,7 @@ struct PopupView: View {
             .padding(.bottom, 10)
 
             // Content area
-            switch state.phase {
+            switch state.currentPhase {
             case .loading:
                 HStack(spacing: 8) {
                     ProgressView()
@@ -94,23 +95,31 @@ struct ModeButton: View {
     let label: String
     let isSelected: Bool
     let isHovered: Bool
+    var hasResult: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isSelected ? .white : (isHovered ? .white : .white.opacity(0.7)))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(isSelected ? Color.white.opacity(0.22) : (isHovered ? Color.white.opacity(0.14) : Color.white.opacity(0.08)))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(isSelected ? 0.35 : (isHovered ? 0.2 : 0.12)), lineWidth: 1)
-                )
+            HStack(spacing: 4) {
+                if hasResult && !isSelected {
+                    Circle()
+                        .fill(Color.white.opacity(0.45))
+                        .frame(width: 4, height: 4)
+                }
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isSelected ? .white : (isHovered ? .white : .white.opacity(0.7)))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isSelected ? Color.white.opacity(0.22) : (isHovered ? Color.white.opacity(0.14) : Color.white.opacity(0.08)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(isSelected ? 0.35 : (isHovered ? 0.2 : 0.12)), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: isSelected)

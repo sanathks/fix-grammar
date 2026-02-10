@@ -7,8 +7,8 @@ enum PopupPhase {
 }
 
 final class PopupState: ObservableObject {
-    @Published var phase: PopupPhase
     @Published var selectedModeId: UUID?
+    @Published var modePhases: [UUID: PopupPhase] = [:]
 
     var modes: [RewriteMode]
     var onModeSelected: ((RewriteMode) -> Void)?
@@ -18,6 +18,10 @@ final class PopupState: ObservableObject {
 
     init(modes: [RewriteMode]) {
         self.modes = modes
-        self.phase = .loading
+    }
+
+    var currentPhase: PopupPhase {
+        guard let id = selectedModeId else { return .loading }
+        return modePhases[id] ?? .loading
     }
 }

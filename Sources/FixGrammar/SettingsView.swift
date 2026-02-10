@@ -121,7 +121,14 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("Quit") {
-                    NSApplication.shared.terminate(nil)
+                    // Close the settings panel first, then terminate on next
+                    // run loop pass to avoid hanging with nonactivatingPanel.
+                    if let panel = NSApp.windows.first(where: { $0 is NSPanel && $0.isVisible }) {
+                        panel.orderOut(nil)
+                    }
+                    DispatchQueue.main.async {
+                        NSApp.terminate(nil)
+                    }
                 }
                 .controlSize(.small)
             }
