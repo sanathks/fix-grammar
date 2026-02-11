@@ -234,11 +234,75 @@ final class AccessibilityService {
         return NSRect(x: mouse.x, y: mouse.y, width: 0, height: 0)
     }
 
+    // MARK: - Pasteboard save / restore
+
+    private typealias PasteboardItem = [(NSPasteboard.PasteboardType, Data)]
+
+    private func savePasteboard() -> [PasteboardItem] {
+        let pasteboard = NSPasteboard.general
+        var snapshot: [PasteboardItem] = []
+        guard let items = pasteboard.pasteboardItems else { return snapshot }
+        for item in items {
+            var typesAndData: PasteboardItem = []
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    typesAndData.append((type, data))
+                }
+            }
+            snapshot.append(typesAndData)
+        }
+        return snapshot
+    }
+
+    private func restorePasteboard(_ snapshot: [PasteboardItem]) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        var pbItems: [NSPasteboardItem] = []
+        for itemData in snapshot {
+            let pbItem = NSPasteboardItem()
+            for (type, data) in itemData {
+                pbItem.setData(data, forType: type)
+            }
+            pbItems.append(pbItem)
+        }
+        pasteboard.writeObjects(pbItems)
+    }
+
+    // MARK: - AX-based text replacement
+
+    /// Try to replace the selected text directly via AX attribute.
+    /// Returns true on success (clipboard untouched).
+    private func replaceSelectedTextViaAX(_ text: String) -> Bool {
+        guard let focused = cachedFocusedElement else { return false }
+
+        let result = AXUIElementSetAttributeValue(
+            focused,
+            kAXSelectedTextAttribute as CFString,
+            text as CFTypeRef
+        )
+        guard result == .success else { return false }
+
+        // Verify the write actually took effect.
+        var readBack: AnyObject?
+        guard AXUIElementCopyAttributeValue(
+            focused,
+            kAXSelectedTextAttribute as CFString,
+            &readBack
+        ) == .success, let written = readBack as? String, written == text else {
+            return false
+        }
+        return true
+    }
+
+    // MARK: - Clipboard fallbacks
+
     /// Fallback: simulate Cmd+C and read from pasteboard.
     private func getSelectedTextViaClipboard() -> String? {
         if let frontApp = NSWorkspace.shared.frontmostApplication {
             sourceAppPID = frontApp.processIdentifier
         }
+
+        let saved = savePasteboard()
 
         let pasteboard = NSPasteboard.general
         let oldChangeCount = pasteboard.changeCount
@@ -246,12 +310,24 @@ final class AccessibilityService {
         simulateKeyPress(keyCode: 0x08, flags: .maskCommand) // Cmd+C
         usleep(150_000) // 150ms
 
-        guard pasteboard.changeCount != oldChangeCount else { return nil }
-        return pasteboard.string(forType: .string)
+        guard pasteboard.changeCount != oldChangeCount else {
+            restorePasteboard(saved)
+            return nil
+        }
+        let text = pasteboard.string(forType: .string)
+
+        restorePasteboard(saved)
+        return text
     }
 
-    /// Replace text in the source app by pasting from clipboard.
+    /// Replace text in the source app, preferring AX, falling back to paste.
     func replaceTextInSourceApp(_ text: String) {
+        // Fast path: direct AX write (clipboard untouched).
+        if replaceSelectedTextViaAX(text) { return }
+
+        // Slow path: clipboard-based paste with save/restore.
+        let saved = savePasteboard()
+
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
@@ -262,6 +338,9 @@ final class AccessibilityService {
         }
 
         simulateKeyPress(keyCode: 0x09, flags: .maskCommand) // Cmd+V
+        usleep(200_000) // wait for paste to land
+
+        restorePasteboard(saved)
     }
 
     private func simulateKeyPress(keyCode: CGKeyCode, flags: CGEventFlags) {
