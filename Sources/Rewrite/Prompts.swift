@@ -1,16 +1,4 @@
 enum Prompts {
-    static func grammar(text: String) -> String {
-        """
-        Fix any grammar, spelling, and punctuation errors in the following text. \
-        Preserve the original meaning, tone, and formatting. \
-        Return ONLY the corrected text. \
-        Do NOT wrap output in quotes or markdown formatting. \
-        Do NOT add any explanations or comments.
-
-        \(text)
-        """
-    }
-
     static func rewrite(mode: RewriteMode, text: String) -> String {
         let instruction: String
         if mode.name == "My Tone" {

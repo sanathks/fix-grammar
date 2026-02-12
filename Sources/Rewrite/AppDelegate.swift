@@ -156,14 +156,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let settings = Settings.shared
-        let prompt: String
-
-        if let modeId = settings.defaultModeId,
-           let mode = settings.rewriteModes.first(where: { $0.id == modeId }) {
-            prompt = Prompts.rewrite(mode: mode, text: text)
-        } else {
-            prompt = Prompts.grammar(text: text)
-        }
+        let mode = settings.rewriteModes.first(where: { $0.id == settings.defaultModeId })
+            ?? settings.rewriteModes[0]
+        let prompt = Prompts.rewrite(mode: mode, text: text)
 
         LLMService.shared.generate(prompt: prompt) { result in
             DispatchQueue.main.async {

@@ -82,7 +82,6 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Picker("", selection: defaultModeBinding) {
-                    Text("Fix Grammar").tag("")
                     ForEach(settings.rewriteModes) { mode in
                         Text(mode.name).tag(mode.id.uuidString)
                     }
@@ -170,9 +169,13 @@ struct SettingsView: View {
 
     private var defaultModeBinding: Binding<String> {
         Binding(
-            get: { settings.defaultModeId?.uuidString ?? "" },
+            get: {
+                settings.defaultModeId?.uuidString
+                    ?? settings.rewriteModes.first?.id.uuidString
+                    ?? ""
+            },
             set: { newValue in
-                settings.defaultModeId = newValue.isEmpty ? nil : UUID(uuidString: newValue)
+                settings.defaultModeId = UUID(uuidString: newValue)
             }
         )
     }

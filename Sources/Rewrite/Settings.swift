@@ -26,6 +26,7 @@ struct RewriteMode: Codable, Identifiable, Equatable {
 
 final class Settings: ObservableObject {
     static let shared = Settings()
+    static let fixGrammarModeId = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
     let defaults: UserDefaults
 
@@ -71,6 +72,11 @@ final class Settings: ObservableObject {
 
     static let defaultRewriteModes: [RewriteMode] = [
         RewriteMode(
+            id: fixGrammarModeId,
+            name: "Fix Grammar",
+            prompt: "Fix any grammar, spelling, and punctuation errors in the following text. Never use em dashes or semicolons. Use commas or periods instead. Preserve the original meaning, tone, and formatting."
+        ),
+        RewriteMode(
             id: UUID(),
             name: "Clarity",
             prompt: "Rewrite the following text for maximum clarity and readability. Use simple, direct language and short sentences. Prefer active voice over passive voice. Remove filler words, redundant phrases, and unnecessary jargon. Break long sentences into shorter ones. Preserve the original meaning and all key information. Fix any grammar or spelling errors."
@@ -84,11 +90,6 @@ final class Settings: ObservableObject {
             id: UUID(),
             name: "Humanize",
             prompt: "Rewrite the following text to sound natural and human-written. Use contractions, vary sentence length, and prefer active voice. Remove stiff connectors like \"Moreover\" and \"Furthermore\" and let ideas flow naturally. Avoid overused AI words like \"delve\", \"game-changing\", \"unlock\", \"landscape\", or \"groundbreaking\". Keep the original meaning and do not add new information. Fix any grammar or spelling errors."
-        ),
-        RewriteMode(
-            id: UUID(),
-            name: "Professional",
-            prompt: "Rewrite the following text in a professional, polished tone suitable for business communication. Be clear and confident but not stiff or overly formal. Write like a competent colleague, not a legal document. Use precise vocabulary, complete sentences, and a respectful tone. Remove slang, filler words, and casual phrasing. Preserve the original meaning and all key information. Fix any grammar or spelling errors."
         ),
     ]
 
@@ -118,12 +119,16 @@ final class Settings: ObservableObject {
            let uuid = UUID(uuidString: idString) {
             self.defaultModeId = uuid
         } else {
-            self.defaultModeId = nil
+            self.defaultModeId = Settings.fixGrammarModeId
         }
 
         // Load rewrite modes from UserDefaults or use defaults
         if let data = defaults.data(forKey: "rewriteModes"),
-           let modes = try? JSONDecoder().decode([RewriteMode].self, from: data) {
+           var modes = try? JSONDecoder().decode([RewriteMode].self, from: data) {
+            // Migration: ensure Fix Grammar mode exists for existing users
+            if !modes.contains(where: { $0.id == Settings.fixGrammarModeId }) {
+                modes.insert(Settings.defaultRewriteModes[0], at: 0)
+            }
             self.rewriteModes = modes
         } else {
             self.rewriteModes = Settings.defaultRewriteModes
