@@ -23,7 +23,8 @@ All processing happens locally. No data leaves your machine.
 
 1. Download the DMG for your Mac
 2. Open the DMG and drag **Rewrite.app** to your Applications folder
-3. Launch Rewrite and grant Accessibility permissions when prompted
+3. On first launch, right-click the app and select **Open** (macOS blocks unsigned apps by default)
+4. Grant Accessibility permissions when prompted
 
 ### Build from Source
 

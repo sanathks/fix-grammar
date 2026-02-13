@@ -31,6 +31,7 @@ cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon
 cp "$PROJECT_DIR/Resources/icon.png" "$APP_BUNDLE/Contents/Resources/icon.png"
 echo "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 
+codesign --force --deep --sign - "$APP_BUNDLE"
 echo "App bundle created: $APP_BUNDLE"
 
 # Determine DMG filename based on architecture
