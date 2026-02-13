@@ -21,8 +21,7 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-if [ $# -gt 0 ]; then
-    # Multi-arch build: binary is under apple/Products
+if [ -f "$PROJECT_DIR/.build/apple/Products/Release/$APP_NAME" ]; then
     cp "$PROJECT_DIR/.build/apple/Products/Release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 else
     cp "$PROJECT_DIR/.build/release/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
